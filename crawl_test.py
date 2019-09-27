@@ -9,7 +9,7 @@ from bs4 import BeautifulSoup
 import pyquery
 import js2py
 
-class Propotion:
+class StockMarketCapPercent:
     def __init__(self, sort, code, name, percent):
         # 排序
         self.Sort = int(sort)
@@ -21,7 +21,7 @@ class Propotion:
         self.Percent = fractions.Fraction(percent[:-1])
     def __repr__(self):
         return (
-            f'class Propotion {{ '
+            f'class StockMarketCapPercent {{ '
             f'Sort={self.Sort}, '
             f'Code={self.Code}, '
             f'Name={self.Name}, '
@@ -29,7 +29,7 @@ class Propotion:
             f'}}'
         )    
 
-def getProxiesFromProxyNova():
+def get_proxies_from_ProxyNova():
     proxies = []
     # 按照網站規則使用各國代碼傳入網址取得各國 IP 代理
     countries = [
@@ -54,24 +54,21 @@ def getProxiesFromProxyNova():
             loguru.logger.debug(f'getProxiesFromProxyNova: status code is not 200')
             continue
         loguru.logger.success(f'getProxiesFromProxyNova: downloaded.')
-        d = pyquery.PyQuery(response.text)
-        table = d('table#tbl_proxy_list')
-        rows = list(table('tbody:first > tr').items())
+
+        soup = BeautifulSoup(response.text)
+        table = soup.table
+        rows = table.tbody.find_all('tr')
         loguru.logger.warning(f'getProxiesFromProxyNova: scanning...')
         for row in rows:
-            tds = list(row('td').items())
-            # 若為分隔行則僅有 1 格
-            if len(tds) == 1:
-                continue
             # 取出 IP 欄位內的 JavaScript 程式碼
-            js = row('td:nth-child(1) > abbr').text()
+            js = row.find('script').string
             # 去除 JavaScript 程式碼開頭的 document.write( 字串與結尾的 ); 字串，
             # 再與可供 js2py 執行後回傳指定變數的 JavaScript 程式碼相結合
-            js = 'let x = %s; x' % (js[15:-2])
+            js = 'let x = %s; x' % (js.replace('document.write(', '').replace(');', ''))
             # 透過 js2py 執行取得還原後的 IP
             ip = js2py.eval_js(js).strip()
             # 取出 Port 欄位值
-            port = row('td:nth-child(2)').text().strip()
+            port = row.find_all('td')[1].text.strip()
             # 組合 IP 代理
             proxy = f'{ip}:{port}'
             proxies.append(proxy)
@@ -80,6 +77,8 @@ def getProxiesFromProxyNova():
         # 每取得一個國家代理清單就休息一秒，避免頻繁存取導致代理清單網站封鎖
         time.sleep(1)
     return proxies
+
+
 
 def main():
     resp = requests.get('https://www.taifex.com.tw/cht/9/futuresQADetail')
@@ -111,10 +110,10 @@ def main():
     # 解碼失敗無法取得有效文字內容資料
     if txt is None:
         return
-    loguru.logger.info(txt)
+    # loguru.logger.info(txt)
 
     # 成分股市值佔比清單
-    proportions = []
+    stock_markert_cap_list = []
 
     # 將下載回來的內容解析為 PyQuery 物件
     d = pyquery.PyQuery(txt)
@@ -140,7 +139,7 @@ def main():
             # 取出市值佔比欄位值
             percent = tds[3].text().strip()
             # 將取得資料存入成分股市值佔比清單
-            proportions.append(Propotion(
+            stock_markert_cap_list.append(StockMarketCapPercent(
                 sort=sort,
                 code=code,
                 name=name,
@@ -160,7 +159,7 @@ def main():
             # 取出市值佔比欄位值
             percent = tds[7].text().strip()
             # 將取得資料存入成分股市值佔比清單
-            proportions.append(Propotion(
+            stock_markert_cap_list.append(StockMarketCapPercent(
                 sort=sort,
                 code=code,
                 name=name,
@@ -168,11 +167,11 @@ def main():
             ))
 
     # 按證券代碼順序重新排列資列並輸出（分析結果 3.）
-    proportions.sort(key=lambda proportion: proportion.Code)
-    # loguru.logger.info(proportions)
+    stock_markert_cap_list.sort(key=lambda i: i.Code)
+    # loguru.logger.info(stock_markert_cap_list)
     # 將每筆物件表達式輸出的字串以系統換行符號相接，讓每筆物件表達式各自獨立一行
-    message = os.linesep.join([str(proportion) for proportion in proportions])
-    loguru.logger.info('PROPORTIONS' + os.linesep + message)
+    message = os.linesep.join([str(i) for i in stock_markert_cap_list])
+    loguru.logger.info('Stock market cap percent' + os.linesep + message)
 
 if __name__ == '__main__':
     loguru.logger.add(
