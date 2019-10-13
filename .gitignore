@@ -3,3 +3,5 @@
 .pdf
 .DS_Store
 finpy/
+log/
+stock_infos/
