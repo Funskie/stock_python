@@ -256,7 +256,7 @@ def delete_data():
 
 if __name__ == '__main__':
     loguru.logger.add(
-        f'{datetime.date.today():%Y%m%d}.log',
+        f'log/{datetime.date.today():%Y%m%d}.log',
         rotation='1 day',
         retention='7 days',
         level='DEBUG'

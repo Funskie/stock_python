@@ -6,4 +6,5 @@ finpy/
 log/
 stock_infos/
 proxies/
-20191016.log
+
+__pycache__/
